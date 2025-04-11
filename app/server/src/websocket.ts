@@ -54,4 +54,29 @@ export class ChatWebSocket {
       text: message,
     });
   }
+
+  handleConnection(client: Socket) {
+    const id_user = client.handshake.query.userId as string;
+    if (id_user) {
+      client.join(` ${id_user}`);
+      console.log(`welcome :  ${id_user}`);
+    }
+  }
+  @SubscribeMessage('privateMessage')
+  handlePrivateMessage(
+    @MessageBody() data: { recipientId: string; message: string },
+    @ConnectedSocket() client: Socket,
+  ) {
+    const senderId = client.handshake.query.userId;
+    if (data.recipientId == senderId) {
+      console.log('the same id ');
+      return;
+    }
+    const room = `to : ${data.recipientId}  =>  ${data.message}`;
+    console.log(room);
+    this.server.to(room).emit('privateMessage', {
+      from: senderId,
+      text: data.message,
+    });
+  }
 }

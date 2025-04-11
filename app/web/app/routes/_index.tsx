@@ -20,7 +20,9 @@ export default function Index() {
   const [room, setRoom] = useState("seo");
   const [messages, setMessage] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("hahah");
-
+  const [recipientId, setrecipientId] = useState("");
+  const [allPrivateMessages, setPrivteMessages] = useState([]);
+  const [isprivateMessage, setPrivateMessate] = useState("");
   const [isSending, setisSending] = useState(false);
   const [error, setError] = useState("");
 
@@ -61,9 +63,18 @@ export default function Index() {
     },
     [sendMessage]
   );
-
+  const privateMessage = () => {
+    socket.current.emit("privateMessage", {
+      recipientId,
+      message: isprivateMessage,
+    });
+  };
   useEffect(() => {
-    socket.current = io(URL);
+    socket.current = io(URL, {
+      query: {
+        userId: currentUser.id,
+      },
+    });
     function connect_function() {
       SetConnected(true);
       socket.current?.emit("join", {
@@ -77,11 +88,18 @@ export default function Index() {
     const onError = (er: Error) => {
       setError(er);
     };
+    function onprivateMessage() {
+      socket.current?.on("privateMessage", (data) => {
+        console.log(`[Private] ${data.from} says: ${data.text}`);
+        setPrivteMessages(data);
+      });
+    }
     function onMesasge(msg: string) {
       setMessage((prev) => [...prev, msg]);
     }
 
     socket.current.on("connect", connect_function);
+    socket.current.on("connect", onprivateMessage);
     socket.current.on("disconnect", disconnect);
     socket.current.on("error", onError);
     socket.current.on("message", onMesasge);
@@ -89,6 +107,7 @@ export default function Index() {
       socket.current?.off("connect", connect_function);
 
       socket.current?.off("message", onMesasge);
+      socket.current?.off("message", onprivateMessage);
       socket.current?.disconnect();
       socket.current?.off("disconnect", disconnect());
       socket.current?.off("error", onError);
@@ -119,6 +138,7 @@ export default function Index() {
             </div>
           </div>
           <div className="bg-amber-400 border-black border p-7 rounded-xl">
+            {JSON.stringify(allPrivateMessages)}
             <div className="max-h-96 overflow-y-auto mb-4">
               {messages.map((item, index) => (
                 <div
@@ -133,7 +153,6 @@ export default function Index() {
               ))}
               <div ref={messageEndRef} />
             </div>
-
             <div className="my-3">
               <input
                 value={newMessage}
@@ -144,7 +163,22 @@ export default function Index() {
                 disabled={!isConnected || isSending}
               />
             </div>
-
+            <div className="my-3">
+              <input
+                value={isprivateMessage}
+                onChange={(e) => setPrivateMessate(e.target.value)}
+                placeholder="Type your message..."
+                className="w-full font-light p-3 outline-none bg-amber-400 border border-gray-300"
+                disabled={!isConnected || isSending}
+              />
+              <div>
+                <input
+                  className=""
+                  value={recipientId}
+                  onChange={(e) => setrecipientId(e.target.value)}
+                />
+              </div>
+            </div>
             <div className="flex justify-end">
               <button
                 className="bg-black text-white p-3 px-10 border border-black disabled:opacity-50"
@@ -152,6 +186,12 @@ export default function Index() {
                 disabled={!newMessage.trim() || !isConnected || isSending}
               >
                 {isSending ? "Sending..." : "Send Message"}
+              </button>
+              <button
+                className="bg-gray-300  px-10 mx-3"
+                onClick={() => privateMessage()}
+              >
+                private message
               </button>
             </div>
           </div>
